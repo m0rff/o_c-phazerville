@@ -1678,7 +1678,6 @@ void AppHemisphere::HandleAppEvent(OC::AppEvent event) {
 
 void AppHemisphere::Loop() {
     mainloop();
-    for (int h = 0; h < 2; h++) HS::get_applet(my_applet[h], HEM_SIDE(h))->mainloop();
 }
 
 void AppHemisphere::DrawMenu() const {

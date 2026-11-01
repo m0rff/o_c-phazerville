@@ -1778,7 +1778,6 @@ FLASHMEM void AppQuadrants::HandleAppEvent(OC::AppEvent event) {
 
 void AppQuadrants::Loop() {
     mainloop();
-    for (int h = 0; h < APPLET_SLOTS; h++) active_applet[h]->mainloop();
     audio_app.mainloop();
 }
 

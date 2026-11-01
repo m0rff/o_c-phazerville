@@ -108,7 +108,6 @@ class AcidMIDI : public HemisphereApplet {
     // may be called from the ISR
     reset_pending = true;
   }
-  void mainloop() override;
 
   enum AcidMIDICursor {
     FILE_SEL, PART, RESOLUTION, START_BAR, LOOP_BARS,
@@ -157,6 +156,7 @@ private:
   volatile bool loading = false;
   volatile bool load_pending = true;
   volatile bool rescan_pending = false;
+  volatile bool service_queued = false;
   int8_t load_result = AcidMidi::OK;
   char file_name[9] = "";
 
@@ -311,7 +311,26 @@ private:
     }
   }
 
-  void RequestLoad() { load_pending = true; }
+  // File I/O and parsing are too slow for the ISR, and some callers (e.g.
+  // OnDataReceive during a preset jump) run inside it. So requests only set
+  // a flag, and the work is deferred to the main loop via the core task queue.
+  void QueueService() {
+    if (service_queued) return;
+    service_queued = true;
+    OC::CORE::DeferTask([this]() {
+      service_queued = false;
+      ServiceLoads();
+    });
+  }
+  void RequestLoad() {
+    load_pending = true;
+    QueueService();
+  }
+  void RequestRescan() {
+    rescan_pending = true;
+    QueueService();
+  }
+  void ServiceLoads();
   void LoadFile();
   const char *FileName(int idx, char *buf) const;
   void DrawRow(int row, int y);
@@ -342,8 +361,8 @@ FLASHMEM void AcidMIDI::Start() {
   RequestLoad();
 }
 
-// Main loop context: file I/O and parsing happen here, never in the ISR
-FLASHMEM void AcidMIDI::mainloop() {
+// Main loop context (deferred task): file I/O and parsing happen here
+FLASHMEM void AcidMIDI::ServiceLoads() {
 #ifdef ARDUINO_TEENSY41
   if (rescan_pending || !AcidMidiShared::sd_scanned) {
     rescan_pending = false;
@@ -566,7 +585,7 @@ FLASHMEM void AcidMIDI::View() {
 FLASHMEM void AcidMIDI::OnButtonPress() {
 #ifdef ARDUINO_TEENSY41
   // pick up new files on the card when starting to edit the file selector
-  if (cursor == FILE_SEL && !EditMode()) rescan_pending = true;
+  if (cursor == FILE_SEL && !EditMode()) RequestRescan();
 #endif
   CursorToggle();
 }
@@ -576,9 +595,7 @@ FLASHMEM void AcidMIDI::AuxButton() {
     seed = random(256);
   } else if (cursor == FILE_SEL || cursor == PART) {
     // reload (e.g. after copying a new version of the file to the card)
-#ifdef ARDUINO_TEENSY41
     rescan_pending = true;
-#endif
     RequestLoad();
   }
   CancelEdit();
@@ -643,7 +660,7 @@ uint64_t AcidMIDI::OnDataRequest() {
 }
 
 // May be called from the ISR (preset jumps), so only set values here and
-// leave the actual file loading to mainloop()
+// leave the actual file loading to the deferred ServiceLoads()
 void AcidMIDI::OnDataReceive(uint64_t data) {
   file_idx   = Unpack(data, PackLocation{0, 8});
   part       = Unpack(data, PackLocation{8, 4});

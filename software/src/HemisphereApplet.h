@@ -111,9 +111,6 @@ public:
     virtual void OnButtonPress() { CursorToggle(); };
     virtual void OnEncoderMove(int direction) = 0;
     virtual void Unload() { }
-    // Called from the main loop (not the ISR) for every active applet.
-    // Safe for slow or blocking work such as SD card access.
-    virtual void mainloop() { }
     virtual void DrawFullScreen() {
       View();
       graphics.drawBitmap8(96 - (hemisphere & 1)*64, 28, 8, (hemisphere & 1) ? RIGHT_ICON : LEFT_ICON);
