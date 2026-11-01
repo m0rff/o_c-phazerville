@@ -49,7 +49,7 @@
 
 // On Teensy, keep this (non-realtime) code in flash to save fast RAM
 #if defined(FLASHMEM)
-#define ACIDMIDI_COLD FLASHMEM
+#define ACIDMIDI_COLD FLASHMEM __attribute__((noinline))
 #else
 #define ACIDMIDI_COLD
 #endif
@@ -184,14 +184,11 @@ struct NoteSlot {
 } // namespace detail
 
 // ---------------------------------------------------------------------------
-// Count the parts of a file without converting it. Returns <0 on error.
-inline int CountParts(const uint8_t *data, size_t size);
-
 // Convert one part of an SMF into a step grid.
 //   part: 0-based part index
 //   steps_per_quarter: grid resolution (2 = 8ths, 3 = 8th triplets,
 //                      4 = 16ths, 6 = 16th triplets, 8 = 32nds)
-ACIDMIDI_COLD inline Result Parse(const uint8_t *data, size_t size, int part,
+ACIDMIDI_COLD static Result Parse(const uint8_t *data, size_t size, int part,
                     int steps_per_quarter, Song &out) {
   using namespace detail;
   out.Clear();
@@ -339,17 +336,7 @@ ACIDMIDI_COLD inline Result Parse(const uint8_t *data, size_t size, int part,
   return OK;
 }
 
-ACIDMIDI_COLD inline int CountParts(const uint8_t *data, size_t size) {
-  Song *tmp = (Song*)malloc(sizeof(Song));
-  if (!tmp) return ERR_NO_MEMORY;
-  Result res = Parse(data, size, 0, 4, *tmp);
-  int count = tmp->part_count;
-  free(tmp);
-  if (res != OK && res != ERR_NO_PART) return res;
-  return count;
-}
-
-inline const char *ResultString(int r) {
+ACIDMIDI_COLD static const char *ResultString(int r) {
   switch (r) {
     case OK:            return "OK";
     case ERR_NOT_MIDI:  return "Not MIDI";

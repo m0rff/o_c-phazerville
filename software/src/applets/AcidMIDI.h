@@ -362,7 +362,7 @@ FLASHMEM void AcidMIDI::Start() {
 }
 
 // Main loop context (deferred task): file I/O and parsing happen here
-FLASHMEM void AcidMIDI::ServiceLoads() {
+FLASHMEM __attribute__((noinline)) void AcidMIDI::ServiceLoads() {
 #ifdef ARDUINO_TEENSY41
   if (rescan_pending || !AcidMidiShared::sd_scanned) {
     rescan_pending = false;
@@ -391,7 +391,7 @@ FLASHMEM const char *AcidMIDI::FileName(int idx, char *buf) const {
   return "---";
 }
 
-FLASHMEM void AcidMIDI::LoadFile() {
+FLASHMEM __attribute__((noinline)) void AcidMIDI::LoadFile() {
   using namespace AcidMidiShared;
   if (!scratch) {
     scratch = (AcidMidi::Song *)extmem_malloc(sizeof(AcidMidi::Song));
@@ -462,7 +462,8 @@ FLASHMEM void AcidMIDI::LoadFile() {
   loading = false;
 }
 
-void AcidMIDI::Controller() {
+// In flash like LowerRenz/BitBeat/EnvSeq, to keep RAM1 (ITCM) free on T4.1
+FLASHMEM void AcidMIDI::Controller() {
   const uint32_t now = HS::get_tick();
   if (Clock(1)) reset_pending = true;
 
@@ -641,7 +642,7 @@ FLASHMEM void AcidMIDI::OnEncoderMove(int direction) {
   }
 }
 
-uint64_t AcidMIDI::OnDataRequest() {
+FLASHMEM uint64_t AcidMIDI::OnDataRequest() {
   uint64_t data = 0;
   Pack(data, PackLocation{0, 8}, file_idx);
   Pack(data, PackLocation{8, 4}, part);
@@ -661,7 +662,7 @@ uint64_t AcidMIDI::OnDataRequest() {
 
 // May be called from the ISR (preset jumps), so only set values here and
 // leave the actual file loading to the deferred ServiceLoads()
-void AcidMIDI::OnDataReceive(uint64_t data) {
+FLASHMEM void AcidMIDI::OnDataReceive(uint64_t data) {
   file_idx   = Unpack(data, PackLocation{0, 8});
   part       = Unpack(data, PackLocation{8, 4});
   res_idx    = constrain(Unpack(data, PackLocation{12, 3}), 0, (int)sizeof(SPQ_TABLE) - 1);
@@ -680,7 +681,7 @@ void AcidMIDI::OnDataReceive(uint64_t data) {
   RequestLoad();
 }
 
-void AcidMIDI::SetHelp() {
+FLASHMEM void AcidMIDI::SetHelp() {
   //                    "-------" <-- Label size guide
   help[HELP_DIGITAL1] = "Clock";
   help[HELP_DIGITAL2] = "Reset";
