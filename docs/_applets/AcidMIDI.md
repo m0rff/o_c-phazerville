@@ -88,6 +88,8 @@ Instead of the step counter, the bottom line can show:
 ### Built-in demo files
 * **Acid1**: a 2-bar A minor acid bassline (one part) with accents and slides.
 * **Acid3P**: a 4-bar, 3-part demo for multi-voice setups. Part 1 is a bassline, Part 2 a slower lead line with ties, Part 3 an arpeggio.
+* **BellaCia**: _Bella Ciao_, 17 bars, the original 9-instrument arrangement (Parts 1-9).
+* **Bella3V**: the same song merged into 3 voices: Part 1 melody, Part 2 bass, Part 3 high counter line (try _Oct_ -2 on it). All notes have the same velocity, so use _Acc%_ for accents.
 
 ### SD card (ORN8 / Teensy 4.1)
 Copy `.mid` files into a folder named `MIDI` at the root of the SD card. They appear after the built-in files, sorted by name. Use the MTP boot slot to copy files over USB, or put the card in a computer. After adding files, press the AuxButton on _File_ to rescan.
@@ -102,6 +104,17 @@ python3 res/midi2header.py my_lines/*.mid -o src/applets/AcidMIDIData.h
 The script lists the parts it finds in each file, so you know which _Part_ number to pick. File names are shortened to 8 characters. Then rebuild and flash the firmware. Built-in files are listed before the SD card files.
 
 SD card files can be up to 64KB each, and up to 64 files are listed.
+
+### Files with many instruments
+Every track/channel that has notes is one _Part_ (up to 16), numbered in the order they first appear; `midi2header.py` prints the list. Each AcidMIDI instance plays one Part, so a band arrangement gives you a choice of instruments per voice. Drum tracks work too: use _OutB_ = _Gate_ and ignore the pitch output.
+
+Arrangements often pass a role between instruments, e.g. the melody moves from guitar to koto halfway through, so a single Part goes quiet for half the song. `midi2header.py` can merge Parts into voices when embedding a file:
+
+```
+python3 res/midi2header.py "res/acid_midi/Bella_Ciao.mid@1+7,3+4,8+9:Bella3V" ... -o src/applets/AcidMIDIData.h
+```
+
+This builds a file whose Part 1 is the original Parts 1+7, Part 2 is 3+4 and Part 3 is 8+9, named _Bella3V_. Merged voices are still monophonic: where two source Parts play at the same time, the louder (then higher) note wins on each step. Do the same for SD card files by merging the tracks in your DAW before exporting.
 
 ### Preparing files
 * Only PPQN timing is supported (the usual DAW export). Tempo changes are ignored.
