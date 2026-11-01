@@ -69,6 +69,7 @@
 // #define ENABLE_APP_ENIGMA
 // #define ENABLE_APP_MIDI
 // #define ENABLE_APP_PONG
+// #define ENABLE_APP_DOOM   // Teensy 4.1 only, needs lib_doom (see env:T41_DOOM)
 // #define ENABLE_APP_PIQUED
 // #define ENABLE_APP_POLYLFO
 // #define ENABLE_APP_H1200

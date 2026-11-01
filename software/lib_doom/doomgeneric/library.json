@@ -1,0 +1,22 @@
+{
+  "name": "doomgeneric",
+  "version": "0.1.0",
+  "description": "doomgeneric (Chocolate Doom based) adapted for Ornament & Crime / Phazerville on Teensy 4.1",
+  "license": "GPL-2.0-or-later",
+  "frameworks": "arduino",
+  "platforms": "teensy",
+  "build": {
+    "flags": [
+      "-DOC_DOOM",
+      "-DOC_DOOM_INTERNAL",
+      "-DCMAP256",
+      "-DDOOMGENERIC_RESX=320",
+      "-DDOOMGENERIC_RESY=200",
+      "-include oc_doom.h",
+      "-O2",
+      "-fno-lto",
+      "-w"
+    ],
+    "libArchive": true
+  }
+}

@@ -42,6 +42,9 @@ namespace menu = OC::menu;
 #include "ScaleEditor.h"
 #include "WaveformEditor.h"
 #include "PongGame.h"
+#ifdef ENABLE_APP_DOOM
+#include "Doom.h"
+#endif
 #include "Backup.h"
 #include "SETTINGS.h"
 
@@ -130,6 +133,9 @@ static AppContainer<void // this space intentionally left blank
 #endif
 #ifdef ENABLE_APP_PONG
   , AppPong
+#endif
+#ifdef ENABLE_APP_DOOM
+  , AppDoom
 #endif
   , AppScaleEditor
 #ifndef NO_HEMISPHERE
