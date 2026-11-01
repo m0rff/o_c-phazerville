@@ -13,6 +13,9 @@ using namespace HS;
   static constexpr const uint8_t* applet_icon_
 
 #include "ADSREG.h"
+#ifdef __IMXRT1062__
+#include "AcidMIDI.h"
+#endif
 #include "ADEG.h"
 #include "ASR.h"
 #include "AttenuateOffset.h"
@@ -134,8 +137,11 @@ using namespace HS;
 
 #include "../AppletRegistry.h"
 
-constexpr Registry reg = Registry<HemisphereApplet, HS::APPLET_SLOTS  // unused ID's: 2, 87, 98 (update this list if you use one)
+constexpr Registry reg = Registry<HemisphereApplet, HS::APPLET_SLOTS  // unused ID's: 2, 98 (update this list if you use one)
     , DeclareApplet<ADSREG, 8, CAT_MODULATOR>
+#ifdef __IMXRT1062__
+    , DeclareApplet<AcidMIDI, 87, CAT_SEQUENCER | CAT_MIDI>
+#endif
     , DeclareApplet<ADEG, 34, CAT_MODULATOR>
     , DeclareApplet<MiniASR, 47, CAT_MODULATOR | CAT_QUANTIZER>
     , DeclareApplet<AttenuateOffset, 56, CAT_UTILITY>
