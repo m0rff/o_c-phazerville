@@ -24,6 +24,18 @@ SECTIONS
 		KEEP(*(.startup))
 		/* DOOM app: code and constant tables run from flash (cached) */
 		*libdoomgeneric.a:*(.text* .rodata*)
+		/* Code that is never time critical: C library helpers (strtod,
+		   printf, qsort, ...), file systems, and static constructors */
+		*libc.a:*(.text*)
+		*libc_nano.a:*(.text*)
+		*libSdFat.a:*(.text*)
+		*libLittleFS.a:*(.text*)
+		*(.text.startup*)
+		/* their unwind entries stay next to them (never used: no exceptions) */
+		*libc.a:*(.ARM.exidx* .ARM.extab*)
+		*libc_nano.a:*(.ARM.exidx* .ARM.extab*)
+		*libSdFat.a:*(.ARM.exidx* .ARM.extab*)
+		*libLittleFS.a:*(.ARM.exidx* .ARM.extab*)
 		*(.flashmem*)
 		. = ALIGN(4);
 		KEEP(*(.init))
