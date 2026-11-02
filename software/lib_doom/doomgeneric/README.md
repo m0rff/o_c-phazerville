@@ -18,5 +18,6 @@ Changes for the O_C, all behind `#ifdef OC_DOOM`:
 - `net_defs.h`: BACKUPTICS 32 (single player only).
 - `m_misc.c`: file-exists check goes to the SD card.
 
-Doom's code and constant tables are linked into flash (see
-`slot0_doom.ld` / `slot2_doom.ld`), leaving ITCM/DTCM for Phazerville.
+Doom's code and constant tables are linked into flash, and its variables
+into PSRAM (`.doom.data` / `.doom.bss` in `slot0.ld` / `slot1.ld`; the glue
+copies and clears them in `ocd_start()`), leaving ITCM/DTCM for Phazerville.

@@ -297,9 +297,27 @@ wad_file_class_t stdc_wad_file = { OC_OpenFile, OC_CloseFile, OC_Read };
 
 static char *argv_store[8];
 
+// Set by the Teensy linker scripts (slot0.ld / slot1.ld): Doom's writable
+// data and bss live in PSRAM, which the Teensy startup code does not
+// initialise. Weak so desktop test builds link without them.
+extern char __doom_data_start[] __attribute__((weak));
+extern char __doom_data_end[] __attribute__((weak));
+extern char __doom_data_load[] __attribute__((weak));
+extern char __doom_bss_start[] __attribute__((weak));
+extern char __doom_bss_end[] __attribute__((weak));
+
+static void init_psram_sections(void)
+{
+    if (__doom_data_start && __doom_data_end > __doom_data_start)
+        memcpy(__doom_data_start, __doom_data_load, __doom_data_end - __doom_data_start);
+    if (__doom_bss_start && __doom_bss_end > __doom_bss_start)
+        memset(__doom_bss_start, 0, __doom_bss_end - __doom_bss_start);
+}
+
 int ocd_start(const char *iwad_path)
 {
     static char iwad[64];
+    init_psram_sections();   // must run before any other Doom state is touched
     strncpy(iwad, iwad_path, sizeof(iwad) - 1);
     argv_store[0] = "doom";
     argv_store[1] = "-iwad";

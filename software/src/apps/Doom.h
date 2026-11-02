@@ -34,12 +34,9 @@ extern "C" uint8_t external_psram_size;
 
 namespace ocdoom {
 
-// With PSRAM any IWAD fits; without it only the shareware doom1.wad does.
-static const char *const kWadNamesPsram[] = {
+// IWADs looked for in the SD card root, first match wins
+static const char *const kWadNames[] = {
   "doom.wad", "doomu.wad", "freedoom1.wad", "doom1.wad", "doom2.wad", "freedoom2.wad",
-};
-static const char *const kWadNamesNoPsram[] = {
-  "doom1.wad", "doom.wad", "doomu.wad", "freedoom1.wad",
 };
 
 static inline int psram_mb() {
@@ -61,28 +58,18 @@ void ocd_delay(uint32_t ms) { delay(ms); }
 
 static void *ocd_video_buffer = nullptr;
 
-void *ocd_zone_alloc(int *size) {
+FLASHMEM void *ocd_zone_alloc(int *size) {
   // Doom's 64 KB frame buffer goes in internal RAM, outside the zone: it is
   // touched every frame, and keeping it out of the zone avoids fragmenting it.
   if (!ocd_video_buffer) ocd_video_buffer = malloc(320 * 200);
-  const int psram = ocdoom::psram_mb();
-  if (psram > 0) {
-    // PSRAM fitted: this boot slot only runs Doom, so take all but 1 MB
-    for (int mb = psram - 1; mb >= 2; --mb) {
-      *size = mb * 1024 * 1024;
-      void *p = extmem_malloc(*size);
-      if (p) return p;
-    }
+  // Doom's zone lives in PSRAM (shared with audio applets, so take 3 MB,
+  // or 2 MB if that is all that's left; Freedoom peaks around 1 MB).
+  for (int mb = 3; mb >= 2; --mb) {
+    *size = mb * 1024 * 1024;
+    void *p = extmem_malloc(*size);
+    if (p) return p;
   }
-  // Internal RAM2 heap: take as much as possible, keep 48 KB for other mallocs
-  void *reserve = malloc(48 * 1024);
-  void *zone = nullptr;
-  for (int kb = 480; kb >= 192 && !zone; kb -= 16) {
-    zone = malloc(kb * 1024);
-    if (zone) *size = kb * 1024;
-  }
-  free(reserve);
-  return zone;
+  return nullptr;
 }
 
 void *ocd_fast_alloc(size_t size) {
@@ -95,7 +82,7 @@ int ocd_file_exists(const char *path) {
   return SD.exists(path) ? 1 : 0;
 }
 
-void *ocd_file_open(const char *path, uint32_t *length) {
+FLASHMEM void *ocd_file_open(const char *path, uint32_t *length) {
   for (auto &f : ocdoom::wad_files) {
     if (!f) {
       f = SD.open(path, FILE_READ);
@@ -125,7 +112,7 @@ OC_APP_CLASS(AppDoom, TWOCCS("DM"), "DOOM", "Doom"),
 public:
   OC_APP_INTERFACE_DECLARE(AppDoom, 0);
 
-  enum State { IDLE, LOADING, RUNNING, NO_CARD, NO_WAD, FAILED };
+  enum State { IDLE, LOADING, RUNNING, NO_PSRAM, NO_CARD, NO_WAD, FAILED };
 
   void Start() {}
   void Resume() {}
@@ -144,7 +131,7 @@ public:
   }
 
   // ---- Main loop side
-  void DoLoop() {
+  FLASHMEM void DoLoop() {
     switch (state) {
       case LOADING:
         if (!loading_drawn) return;   // let "Loading" reach the screen first
@@ -158,7 +145,7 @@ public:
     }
   }
 
-  void View() const {
+  FLASHMEM void View() const {
     switch (state) {
       case RUNNING: {
         const uint8_t *fb = ocd_frame();
@@ -180,6 +167,12 @@ public:
         gfxPrint(" MB");
         loading_drawn = true;
         break;
+      case NO_PSRAM:
+        gfxPrint(0, 10, "DOOM needs PSRAM");
+        gfxPrint(0, 26, "Solder an 8 MB PSRAM");
+        gfxPrint(0, 36, "chip (APS6404L) to");
+        gfxPrint(0, 46, "the Teensy 4.1.");
+        break;
       case NO_CARD:
         gfxPrint(0, 10, "DOOM: no SD card");
         gfxPrint(0, 26, "Put a FAT32 microSD");
@@ -195,10 +188,7 @@ public:
       case FAILED:
         gfxPrint(0, 0, "DOOM stopped:");
         PrintWrapped(ocd_error(), 12);
-        if (strstr(ocd_error(), "Z_Malloc") && ocdoom::psram_mb() == 0)
-          gfxPrint(0, 55, "Needs PSRAM/doom1.wad");
-        else
-          gfxPrint(0, 55, "Reboot to retry");
+        gfxPrint(0, 55, "Reboot to retry");
         break;
       case IDLE:
       default:
@@ -333,6 +323,8 @@ private:
   volatile int out_health = 0, out_ammo = 0;
 
   void Launch() {
+    // Doom's working memory is linked into PSRAM: never touch it without one
+    if (ocdoom::psram_mb() == 0) { state = NO_PSRAM; return; }
     if (!SDcard_Ready) { state = NO_CARD; return; }
     state = LOADING;
     loading_drawn = false;
@@ -340,13 +332,8 @@ private:
 
   void StartDoom() {
     const char *wad = nullptr;
-    if (ocdoom::psram_mb() > 0) {
-      for (const char *name : ocdoom::kWadNamesPsram)
-        if (SD.exists(name)) { wad = name; break; }
-    } else {
-      for (const char *name : ocdoom::kWadNamesNoPsram)
-        if (SD.exists(name)) { wad = name; break; }
-    }
+    for (const char *name : ocdoom::kWadNames)
+      if (SD.exists(name)) { wad = name; break; }
     if (!wad) { state = NO_WAD; return; }
     if (ocd_start(wad) != 0) { state = FAILED; return; }
     ocd_set_contrast(contrast);
@@ -463,7 +450,7 @@ size_t AppDoom::RestoreAppData(util::StreamBufferReader &) { return 0; }
 
 void AppDoom::Process(OC::IOFrame *ioframe) { BaseController(ioframe); }
 
-void AppDoom::HandleAppEvent(OC::AppEvent event) {
+FLASHMEM void AppDoom::HandleAppEvent(OC::AppEvent event) {
   switch (event) {
     case OC::APP_EVENT_RESUME: OnResume(); break;
     case OC::APP_EVENT_SUSPEND: OnSuspend(); break;
@@ -471,9 +458,9 @@ void AppDoom::HandleAppEvent(OC::AppEvent event) {
   }
 }
 
-void AppDoom::Loop() { DoLoop(); }
+FLASHMEM void AppDoom::Loop() { DoLoop(); }
 
-void AppDoom::GetIOConfig(OC::IOConfig &ioconfig) const {
+FLASHMEM void AppDoom::GetIOConfig(OC::IOConfig &ioconfig) const {
   ioconfig.digital_inputs[0].set("Fire");
   ioconfig.digital_inputs[1].set("Use");
   ioconfig.digital_inputs[2].set("Next weapon");
