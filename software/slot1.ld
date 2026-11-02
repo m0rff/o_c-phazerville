@@ -22,6 +22,20 @@ SECTIONS
 
 	.text.code : {
 		KEEP(*(.startup))
+		/* DOOM app: code and constant tables run from flash (cached) */
+		*libdoomgeneric.a:*(.text* .rodata*)
+		/* Code that is never time critical: C library helpers (strtod,
+		   printf, qsort, ...), file systems, and static constructors */
+		*libc.a:*(.text*)
+		*libc_nano.a:*(.text*)
+		*libSdFat.a:*(.text*)
+		*libLittleFS.a:*(.text*)
+		*(.text.startup*)
+		/* their unwind entries stay next to them (never used: no exceptions) */
+		*libc.a:*(.ARM.exidx* .ARM.extab*)
+		*libc_nano.a:*(.ARM.exidx* .ARM.extab*)
+		*libSdFat.a:*(.ARM.exidx* .ARM.extab*)
+		*libLittleFS.a:*(.ARM.exidx* .ARM.extab*)
 		*(.flashmem*)
 		. = ALIGN(4);
 		KEEP(*(.init))
@@ -40,6 +54,23 @@ SECTIONS
 		. = ALIGN(4);
 	} > FLASH
 
+	/* DOOM app: working memory lives in PSRAM. Not touched by the startup
+	   code; Doom.h copies/zeroes it before Doom starts (PSRAM required). */
+	.doom.data : {
+		__doom_data_start = .;
+		*libdoomgeneric.a:*(.data*)
+		. = ALIGN(4);
+		__doom_data_end = .;
+	} > ERAM AT> FLASH
+	__doom_data_load = LOADADDR(.doom.data);
+
+	.doom.bss (NOLOAD) : {
+		__doom_bss_start = .;
+		*libdoomgeneric.a:*(.bss* COMMON)
+		. = ALIGN(32);
+		__doom_bss_end = .;
+	} > ERAM
+
 	.text.itcm : {
 		. = . + 32; /* MPU to trap NULL pointer deref */
 		*(.fastrun)
@@ -50,6 +81,7 @@ SECTIONS
 	.ARM.exidx : {
 		__exidx_start = .;
 		*(.ARM.exidx* .ARM.extab.text* .gnu.linkonce.armexidx.*)
+		*(.ARM.extab*)
 		__exidx_end = .;
 	} > ITCM  AT> FLASH
 
@@ -99,7 +131,7 @@ SECTIONS
 	_heap_start = ADDR(.bss.dma) + SIZEOF(.bss.dma);
 	_heap_end = ORIGIN(RAM) + LENGTH(RAM);
 
-	_extram_start = ADDR(.bss.extram);
+	_extram_start = ORIGIN(ERAM);  /* PSRAM heap sizing must count the DOOM sections */
 	_extram_end = ADDR(.bss.extram) + SIZEOF(.bss.extram);
 
 	_itcm_block_count = (SIZEOF(.text.itcm) + SIZEOF(.ARM.exidx) + 0x7FFF) >> 15;

@@ -1,7 +1,9 @@
 Import("env")
 
+import glob
 import subprocess
-from os.path import join
+import sys
+from os.path import join, basename
 
 def get_git_rev():
     git_rev = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode().strip()
@@ -35,8 +37,22 @@ def after_build(source, target, env):
     # app_Y = env.subst("")
 
     out = env.subst("${PROGNAME}.hex")
+    inputs = [app_A, "-Intel", app_B, "-Intel", app_X, "-Intel"]
+
+    # DOOM: a WAD placed in lib_doom/ is packed into the free flash above the
+    # boot slots (see lib_doom/pack_wad.py). Mind its licence before sharing
+    # the resulting .hex.
+    project = env.subst("$PROJECT_DIR")
+    wads = sorted(glob.glob(join(project, "lib_doom", "*.wad")) + glob.glob(join(project, "lib_doom", "*.WAD")))
+    if wads:
+        wad_hex = env.subst(".pio/build/builtin_wad.hex")
+        if subprocess.call([sys.executable, join(project, "lib_doom", "pack_wad.py"), wads[0], wad_hex]) == 0:
+            inputs += [wad_hex, "-Intel"]
+            print(f"Built-in DOOM WAD: {basename(wads[0])}")
+        else:
+            print(f"Built-in DOOM WAD: {basename(wads[0])} could not be packed, skipped")
 
     platform = env.PioPlatform()
-    subprocess.call([join(platform.get_package_dir("tool-sreccat") or "", "srec_cat"), app_A, "-Intel", app_B, "-Intel", app_X, "-Intel", "-o", out, "-Intel"])
+    subprocess.call([join(platform.get_package_dir("tool-sreccat") or "", "srec_cat")] + inputs + ["-o", out, "-Intel"])
 
 env.AddPostAction("buildprog", after_build)
