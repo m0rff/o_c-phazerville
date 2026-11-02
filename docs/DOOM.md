@@ -20,17 +20,47 @@ does nothing.
 Built in with `-DENABLE_APP_DOOM` (in `custom_T41_flags`) plus the
 `doomgeneric` library from `lib_doom`.
 
-## Getting the WAD onto the card
+## 1. Check for PSRAM
 
-Either copy it with a card reader, or over USB: reboot into the "X" (MTP)
-firmware from the multiboot menu, and the SD card shows up as a drive on
-the computer (MTP, on macOS use OpenMTP or Android File Transfer).
+On an O.R.N.8: hold **Z** while powering on, press **Y** (HW Debug) and look
+for the PSRAM line. Otherwise look at the underside of the Teensy 4.1 for a
+chip on one of the two 8-pin pads (APS6404L, 8 MB).
 
-## SD card
+## 2. Prepare the SD card
 
-FAT32 microSD in the Teensy 4.1 slot, with one IWAD in the root:
+FAT32 microSD in the Teensy 4.1 slot, with one IWAD in the root folder:
 `freedoom1.wad` (free, freedoom.github.io), `doom1.wad` (shareware),
 `doom.wad`/`doomu.wad` (registered/Ultimate), `doom2.wad` or `freedoom2.wad`.
+If several are present, `doom.wad`/`doomu.wad` win, then `freedoom1.wad`,
+then `doom1.wad`.
+
+The card can stay in the module: hold **Z** while powering on and press
+**X** (MTP). The SD card then shows up on the computer as an MTP device
+(Windows Explorer; on macOS use OpenMTP or Android File Transfer). Copy the
+WAD, then power-cycle back into Phazerville.
+
+## 3. Build and flash
+
+    git clone -b doom-teensy41 --recurse-submodules https://github.com/m0rff/o_c-phazerville
+    cd o_c-phazerville/software
+    pio run -e T41 -e T41_audio -e T41_MTP
+
+This produces the multiboot image `software/o_C-phazerville-<version>-<rev>.hex`
+(all boot slots; DOOM is in A and B). Flash it like any Phazerville update:
+Teensy Loader, **File > Open HEX File**, press the Teensy's button, wait for
+"Reboot OK". Most O_C builds cut the Teensy's USB power trace, so keep the
+rack powered while flashing.
+
+To update later: `git pull`, then build and flash again. To go back, flash an
+official Phazerville `_T41` release.
+
+## 4. First start
+
+1. Open the app list and pick **DOOM**.
+2. "Loading WAD..." and the PSRAM size show for a few seconds.
+3. The title screen and demos play. **UP** opens the menu; pick New Game,
+   episode and skill with the left encoder and **UP**. **DOWN** goes back.
+4. To leave, hold **UP** and push the right encoder for Phazerville's menu.
 
 ## Controls
 
@@ -47,3 +77,12 @@ FAT32 microSD in the Teensy 4.1 slot, with one IWAD in the root:
 
 CV: TR1 fire, TR2 use, TR3 next weapon, TR4 walk forward, CV1 turn, CV2 walk.
 Outputs: A firing gate, B hurt trigger, C health 0-5 V, D ammo 0-5 V.
+
+## Troubleshooting
+
+| Screen says | Meaning |
+|---|---|
+| DOOM: no SD card | Card missing or not FAT32. Insert it and power-cycle. |
+| DOOM: no WAD found | No supported file name in the card's root folder. |
+| DOOM needs PSRAM | No PSRAM chip was found. |
+| DOOM stopped: (text) | Doom hit an error. Power-cycle, and report the text. |
