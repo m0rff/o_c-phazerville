@@ -2127,3 +2127,86 @@ void M_Init (void)
     //opldev = M_CheckParm("-opldev") > 0;
 }
 
+
+#ifdef OC_DOOM
+// ---------------------------------------------------------------------------
+// O_C: describe the open menu as text, so the app can draw it readably on
+// the 128x64 OLED instead of the scaled-down menu graphics.
+// ---------------------------------------------------------------------------
+
+#include <strings.h>
+
+extern int sfxVolume;
+extern int musicVolume;
+
+static const struct { const char *lump, *text; } menu_labels[] = {
+    {"M_NGAME", "New Game"}, {"M_OPTION", "Options"}, {"M_LOADG", "Load Game"},
+    {"M_SAVEG", "Save Game"}, {"M_RDTHIS", "Read This!"}, {"M_QUITG", "Quit Game"},
+    {"M_EPI1", "Knee-Deep in the Dead"}, {"M_EPI2", "The Shores of Hell"},
+    {"M_EPI3", "Inferno"}, {"M_EPI4", "Thy Flesh Consumed"},
+    {"M_JKILL", "I'm too young to die"}, {"M_ROUGH", "Hey, not too rough"},
+    {"M_HURT", "Hurt me plenty"}, {"M_ULTRA", "Ultra-Violence"}, {"M_NMARE", "Nightmare!"},
+    {"M_ENDGAM", "End Game"}, {"M_MESSG", "Messages"}, {"M_DETAIL", "Graphic Detail"},
+    {"M_SCRNSZ", "Screen Size"}, {"M_MSENS", "Mouse Sensitivity"}, {"M_SVOL", "Sound Volume"},
+    {"M_SFXVOL", "Sfx Volume"}, {"M_MUSVOL", "Music Volume"},
+};
+
+static const char *MenuLabel(const char *lump)
+{
+    size_t i;
+    for (i = 0; i < arrlen(menu_labels); ++i)
+        if (!strcasecmp(lump, menu_labels[i].lump))
+            return menu_labels[i].text;
+    return lump;
+}
+
+int ocd_menu_describe(ocd_menu_t *out)
+{
+    int i;
+
+    memset(out, 0, sizeof(*out));
+    if (!menuactive)
+        return 0;
+
+    out->message = messageToPrint ? messageString : NULL;
+
+    if (currentMenu == &MainDef) out->title = "DOOM";
+    else if (currentMenu == &EpiDef) out->title = "Which episode?";
+    else if (currentMenu == &NewDef) out->title = "Choose skill level";
+    else if (currentMenu == &OptionsDef) out->title = "Options";
+    else if (currentMenu == &SoundDef) out->title = "Sound volume";
+    else if (currentMenu == &LoadDef) out->title = "Load game";
+    else if (currentMenu == &SaveDef) out->title = "Save game";
+    else if (currentMenu == &ReadDef1 || currentMenu == &ReadDef2)
+        return 0;   // full-screen help pages stay graphics
+    else out->title = "Menu";
+
+    out->selected = -1;
+    for (i = 0; i < currentMenu->numitems && out->count < OCD_MENU_MAX_ITEMS; ++i)
+    {
+        menuitem_t *item = &currentMenu->menuitems[i];
+        int n = out->count;
+
+        if (item->status == -1)
+            continue;   // spacer under a slider
+
+        out->value[n] = -1;
+        if (currentMenu == &LoadDef || currentMenu == &SaveDef)
+            out->label[n] = savegamestrings[i];
+        else
+            out->label[n] = MenuLabel(item->name);
+
+        if (!strcasecmp(item->name, "M_SFXVOL")) { out->value[n] = sfxVolume; out->max[n] = 15; }
+        else if (!strcasecmp(item->name, "M_MUSVOL")) { out->value[n] = musicVolume; out->max[n] = 15; }
+        else if (!strcasecmp(item->name, "M_SCRNSZ")) { out->value[n] = screenSize; out->max[n] = 8; }
+        else if (!strcasecmp(item->name, "M_MSENS")) { out->value[n] = mouseSensitivity; out->max[n] = 9; }
+        else if (!strcasecmp(item->name, "M_MESSG")) out->state[n] = showMessages ? "on" : "off";
+        else if (!strcasecmp(item->name, "M_DETAIL")) out->state[n] = detailLevel ? "low" : "high";
+
+        if (i == itemOn)
+            out->selected = n;
+        out->count++;
+    }
+    return 1;
+}
+#endif

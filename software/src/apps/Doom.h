@@ -198,6 +198,11 @@ public:
   FLASHMEM void View() const {
     switch (state) {
       case RUNNING: {
+        ocd_menu_t menu;
+        if (ocd_menu_describe(&menu)) {   // menus as text: the graphics don't survive 128x64
+          DrawTextMenu(menu);
+          break;
+        }
         const uint8_t *fb = ocd_frame();
         for (int page = 0; page < 8; ++page)
           for (int x = 0; x < 128; ++x)
@@ -483,6 +488,63 @@ private:
       if (key_down[k] || gate_key_down[k]) ocd_key(0, kKeyCodes[k]);
       key_down[k] = gate_key_down[k] = false;
     }
+  }
+
+  // Prints s word-wrapped (21 columns, '\n' breaks lines) from y; returns
+  // the y below the last line.
+  int PrintWords(const char *s, int y, int y_max) const {
+    char line[22];
+    while (*s && y <= y_max) {
+      int n = 0, brk = -1;
+      while (s[n] && s[n] != '\n' && n < 21) {
+        if (s[n] == ' ') brk = n;
+        n++;
+      }
+      if (s[n] && s[n] != '\n' && s[n] != ' ' && brk > 0) n = brk;
+      memcpy(line, s, n);
+      line[n] = 0;
+      gfxPrint(0, y, line);
+      s += n;
+      while (*s == ' ' || *s == '\n') s++;
+      y += 9;
+    }
+    return y;
+  }
+
+  void DrawTextMenu(const ocd_menu_t &m) const {
+    graphics.clearRect(0, 0, 128, 64);
+    gfxPrint(1, 1, m.title);
+    gfxInvert(0, 0, 128, 9);
+
+    if (m.message) {
+      PrintWords(m.message, 12, 46);
+      gfxPrint(0, 56, "UP: yes  DOWN: no");
+      return;
+    }
+
+    const int kRows = 6, kRowH = 9, kTop = 10;
+    int first = 0;
+    if (m.selected >= kRows) first = m.selected - kRows + 1;
+    for (int r = 0; r < kRows && first + r < m.count; ++r) {
+      const int i = first + r, y = kTop + r * kRowH;
+      char label[22];
+      const bool has_value = m.value[i] >= 0;
+      const int cols = has_value ? 13 : (m.state[i] ? 16 : 21);
+      const char *src = (m.label[i] && m.label[i][0]) ? m.label[i] : "-";
+      strncpy(label, src, cols);
+      label[cols] = 0;
+      gfxPrint(1, y + 1, label);
+      if (has_value) {   // slider bar
+        const int x0 = 82, w = 44;
+        graphics.drawFrame(x0, y + 2, w, 6);
+        const int fill = m.max[i] > 0 ? (w - 2) * m.value[i] / m.max[i] : 0;
+        graphics.drawRect(x0 + 1, y + 3, fill, 4);
+      } else if (m.state[i]) {
+        gfxPrint(128 - 6 * (int)strlen(m.state[i]) - 1, y + 1, m.state[i]);
+      }
+      if (i == m.selected) gfxInvert(0, y, 128, kRowH);
+    }
+    if (first > 0) gfxPrint(122, kTop + 1, "^");
   }
 
   void PrintWrapped(const char *s, int y) const {

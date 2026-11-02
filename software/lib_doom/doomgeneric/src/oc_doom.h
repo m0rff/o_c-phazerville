@@ -54,6 +54,21 @@ uint32_t ocd_builtin_size(void);
 size_t ocd_builtin_read(uint32_t offset, void *buffer, size_t len);
 void ocd_builtin_set(const void *blob);
 
+// The open Doom menu as text (m_menu.c). Returns 0 when no menu is open,
+// or the menu is a full-screen help page.
+#define OCD_MENU_MAX_ITEMS 10
+typedef struct {
+  const char *title;
+  const char *message;          // confirmation text over the menu, or NULL
+  int count;
+  int selected;                 // index into label[], -1 if none
+  const char *label[OCD_MENU_MAX_ITEMS];
+  const char *state[OCD_MENU_MAX_ITEMS];  // "on"/"off" etc., or NULL
+  int value[OCD_MENU_MAX_ITEMS];          // slider value, -1 if none
+  int max[OCD_MENU_MAX_ITEMS];
+} ocd_menu_t;
+int ocd_menu_describe(ocd_menu_t *out);
+
 // ---- Implemented by the app (C++), called by the glue ---------------------
 uint32_t ocd_millis(void);
 void ocd_delay(uint32_t ms);
