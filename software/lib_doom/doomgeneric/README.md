@@ -15,6 +15,8 @@ Changes for the O_C, all behind `#ifdef OC_DOOM`:
   driven by the GENMIDI patches. `ocd_audio_render()` is called from the
   app's audio stream; `FEATURE_SOUND` is on.
 - `i_sound.c`: no SDL_mixer include.
+- `oc_doom_builtin.c`: reads a WAD packed into program flash by
+  `../pack_wad.py` (raw DEFLATE in 32 KB chunks, small built-in decoder).
 - `i_system.c`: zone memory comes from `ocd_zone_alloc()` (PSRAM when fitted).
 - `i_video.c`: no RGB framebuffer copy; frame buffer kept in internal RAM.
 - `st_stuff.c`: status bar graphics are not loaded or drawn.

@@ -1,7 +1,9 @@
 // Doom.h - DOOM for Ornament & Crime (Teensy 4.1, Phazerville)
 //
 // Runs doomgeneric (lib_doom/doomgeneric) as a full-screen app. The game data
-// (an IWAD) is read from the Teensy 4.1's built-in microSD card.
+// (an IWAD) is read from the Teensy 4.1's built-in microSD card, or from a WAD
+// packed into flash by the multiboot build (lib_doom/pack_wad.py).
+// Sound effects and music take over the audio outputs while DOOM runs.
 //
 // Controls
 //   Left encoder ........ turn (menus: up/down)
@@ -116,11 +118,19 @@ void *ocd_fast_alloc(size_t size) {
   return p;
 }
 
+static int ocd_builtin_handle;   // its address marks the built-in WAD
+
 int ocd_file_exists(const char *path) {
-  return SD.exists(path) ? 1 : 0;
+  if (ocd_builtin_is(path)) return 1;
+  return (SDcard_Ready && SD.exists(path)) ? 1 : 0;
 }
 
 FLASHMEM void *ocd_file_open(const char *path, uint32_t *length) {
+  if (ocd_builtin_is(path)) {
+    *length = ocd_builtin_size();
+    return &ocd_builtin_handle;
+  }
+  if (!SDcard_Ready) return nullptr;
   for (auto &f : ocdoom::wad_files) {
     if (!f) {
       f = SD.open(path, FILE_READ);
@@ -133,6 +143,7 @@ FLASHMEM void *ocd_file_open(const char *path, uint32_t *length) {
 }
 
 size_t ocd_file_read(void *handle, uint32_t offset, void *buffer, size_t len) {
+  if (handle == &ocd_builtin_handle) return ocd_builtin_read(offset, buffer, len);
   File *f = static_cast<File *>(handle);
   if (!f->seek(offset)) return 0;
   int n = f->read(buffer, len);
@@ -140,6 +151,7 @@ size_t ocd_file_read(void *handle, uint32_t offset, void *buffer, size_t len) {
 }
 
 void ocd_file_close(void *handle) {
+  if (handle == &ocd_builtin_handle) return;
   static_cast<File *>(handle)->close();
 }
 
@@ -365,15 +377,18 @@ private:
   void Launch() {
     // Doom's working memory is linked into PSRAM: never touch it without one
     if (ocdoom::psram_mb() == 0) { state = NO_PSRAM; return; }
-    if (!SDcard_Ready) { state = NO_CARD; return; }
+    if (!SDcard_Ready && !ocd_builtin_path()) { state = NO_CARD; return; }
     state = LOADING;
     loading_drawn = false;
   }
 
   void StartDoom() {
     const char *wad = nullptr;
-    for (const char *name : ocdoom::kWadNames)
-      if (SD.exists(name)) { wad = name; break; }
+    // A WAD on the SD card wins over one built into flash
+    if (SDcard_Ready)
+      for (const char *name : ocdoom::kWadNames)
+        if (SD.exists(name)) { wad = name; break; }
+    if (!wad) wad = ocd_builtin_path();
     if (!wad) { state = NO_WAD; return; }
     ocd_audio_set_rate((int)(AUDIO_SAMPLE_RATE_EXACT + 0.5f));
     if (ocd_start(wad) != 0) { state = FAILED; return; }

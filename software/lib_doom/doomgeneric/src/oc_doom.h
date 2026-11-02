@@ -46,6 +46,14 @@ int ocd_next_weapon_key(void); // key ('1'..'7') for the next owned weapon, 0 if
 void ocd_audio_set_rate(int hz);
 void ocd_audio_render(int16_t *left, int16_t *right, int n);
 
+// Built-in WAD packed into program flash (oc_doom_builtin.c, pack_wad.py).
+// ocd_builtin_path() returns its path (e.g. "/flash/doom1.wad") or NULL.
+const char *ocd_builtin_path(void);
+int ocd_builtin_is(const char *path);
+uint32_t ocd_builtin_size(void);
+size_t ocd_builtin_read(uint32_t offset, void *buffer, size_t len);
+void ocd_builtin_set(const void *blob);
+
 // ---- Implemented by the app (C++), called by the glue ---------------------
 uint32_t ocd_millis(void);
 void ocd_delay(uint32_t ms);

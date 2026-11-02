@@ -16,3 +16,7 @@ builds
 compile_commands.json
 *.hex
 *.swp
+
+# DOOM: a WAD built into flash (keep commercial/shareware WADs out of git)
+software/lib_doom/*.wad
+software/lib_doom/*.WAD

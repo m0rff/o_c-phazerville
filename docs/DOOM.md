@@ -39,6 +39,19 @@ The card can stay in the module: hold **Z** while powering on and press
 (Windows Explorer; on macOS use OpenMTP or Android File Transfer). Copy the
 WAD, then power-cycle back into Phazerville.
 
+### Or: build the WAD into the firmware
+
+Put the WAD file in `software/lib_doom/` (for example
+`software/lib_doom/DOOM1.WAD`) before building. The multiboot build then packs
+it (compressed, in 32 KB chunks) into the free flash above the boot slots,
+at 0x60400000, and DOOM starts without an SD card. About 3.25 MB is free
+there: `doom1.wad` (4.0 MB) packs to 1.8 MB; the full Freedoom WADs are too
+big. A WAD on the SD card still wins over the built-in one. `*.wad` files in
+`lib_doom/` are ignored by git.
+
+The shareware `doom1.wad` may only be passed on unmodified, so keep a
+firmware .hex with it built in to yourself.
+
 ## 3. Build and flash
 
     git clone -b doom-teensy41 --recurse-submodules https://github.com/m0rff/o_c-phazerville

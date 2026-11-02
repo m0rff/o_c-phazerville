@@ -317,8 +317,11 @@ static void init_psram_sections(void)
 int ocd_start(const char *iwad_path)
 {
     static char iwad[64];
+    char path[64];
+    strncpy(path, iwad_path, sizeof(path) - 1);   // it may point into PSRAM state
+    path[sizeof(path) - 1] = 0;
     init_psram_sections();   // must run before any other Doom state is touched
-    strncpy(iwad, iwad_path, sizeof(iwad) - 1);
+    strncpy(iwad, path, sizeof(iwad) - 1);
     argv_store[0] = "doom";
     argv_store[1] = "-iwad";
     argv_store[2] = iwad;
