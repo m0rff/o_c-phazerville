@@ -24,7 +24,9 @@
 // Doom is GPL-2.0-or-later (id Software, Chocolate Doom, doomgeneric authors).
 
 #include <SD.h>
+#include <Audio.h>
 #include "HSApplication.h"
+#include "../AudioIO.h"
 #include "../lib_doom/doomgeneric/src/oc_doom.h"
 #include "../lib_doom/doomgeneric/src/doomkeys.h"
 
@@ -49,9 +51,45 @@ static inline int psram_mb() {
 
 static File wad_files[2];
 
+// Doom's sound effects and music as a stereo audio stream. It feeds the
+// audio outputs only while DOOM runs in the foreground (see AudioIO).
+class DoomAudioStream : public AudioStream {
+public:
+  DoomAudioStream() : AudioStream(0, nullptr) {}
+  volatile bool enabled = false;
+  virtual void update(void) {
+    if (!enabled) return;
+    audio_block_t *l = allocate();
+    audio_block_t *r = allocate();
+    if (l && r) {
+      ocd_audio_render(l->data, r->data, AUDIO_BLOCK_SAMPLES);
+      transmit(l, 0);
+      transmit(r, 1);
+    }
+    if (l) release(l);
+    if (r) release(r);
+  }
+};
+
+static DoomAudioStream audio_stream;
+static bool audio_connected = false;
+
+// Takes the audio outputs over while DOOM runs, gives them back otherwise
+static void SetAudio(bool on) {
+  if (on && !audio_connected) {
+    OC::AudioIO::ConnectOverride(audio_stream);
+    audio_connected = true;
+  }
+  audio_stream.enabled = on;
+  OC::AudioIO::SetOverride(on);
+}
+
 }  // namespace ocdoom
 
 extern "C" {
+
+void ocd_audio_lock(void) { AudioNoInterrupts(); }
+void ocd_audio_unlock(void) { AudioInterrupts(); }
 
 uint32_t ocd_millis(void) { return millis(); }
 void ocd_delay(uint32_t ms) { delay(ms); }
@@ -200,10 +238,12 @@ public:
   void OnResume() {
     OC::ui.preempt_screensaver(true);
     if (state == IDLE) Launch();
+    if (state == RUNNING) ocdoom::SetAudio(true);
   }
   void OnSuspend() {
     OC::ui.preempt_screensaver(false);
     ReleaseAll();
+    ocdoom::SetAudio(false);
   }
 
   void OnButton(const UI::Event &event) {
@@ -335,10 +375,12 @@ private:
     for (const char *name : ocdoom::kWadNames)
       if (SD.exists(name)) { wad = name; break; }
     if (!wad) { state = NO_WAD; return; }
+    ocd_audio_set_rate((int)(AUDIO_SAMPLE_RATE_EXACT + 0.5f));
     if (ocd_start(wad) != 0) { state = FAILED; return; }
     ocd_set_contrast(contrast);
     ocd_set_dither(dither);
     state = RUNNING;
+    ocdoom::SetAudio(true);
     next_tic_ms = millis();
   }
 
@@ -351,6 +393,7 @@ private:
     ApplyInputs();
     if (ocd_tick() != 0) {
       state = FAILED;
+      ocdoom::SetAudio(false);
       return;
     }
     UpdateOutputs();

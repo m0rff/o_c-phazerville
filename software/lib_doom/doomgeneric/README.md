@@ -10,6 +10,11 @@ Changes for the O_C, all behind `#ifdef OC_DOOM`:
   dithering) with a small health/armor/ammo HUD; reads WADs from the SD card
   via callbacks in `src/apps/Doom.h`; turns `exit()`/`I_Error()` into a
   `longjmp` back to the app.
+- `oc_doom_sound.c`: sound module. Mixes the WAD's sound effects and plays
+  music (MIDI, or MUS converted with `mus2mid`) on a 2-operator FM synth
+  driven by the GENMIDI patches. `ocd_audio_render()` is called from the
+  app's audio stream; `FEATURE_SOUND` is on.
+- `i_sound.c`: no SDL_mixer include.
 - `i_system.c`: zone memory comes from `ocd_zone_alloc()` (PSRAM when fitted).
 - `i_video.c`: no RGB framebuffer copy; frame buffer kept in internal RAM.
 - `st_stuff.c`: status bar graphics are not loaded or drawn.

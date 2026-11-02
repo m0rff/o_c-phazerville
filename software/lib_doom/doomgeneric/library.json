@@ -9,6 +9,7 @@
     "flags": [
       "-DOC_DOOM",
       "-DOC_DOOM_INTERNAL",
+      "-DFEATURE_SOUND",
       "-DCMAP256",
       "-DDOOMGENERIC_RESX=320",
       "-DDOOMGENERIC_RESY=200",

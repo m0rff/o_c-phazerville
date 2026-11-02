@@ -41,12 +41,20 @@ int ocd_player_damage(void);  // damage flash counter
 int ocd_player_dead(void);
 int ocd_next_weapon_key(void); // key ('1'..'7') for the next owned weapon, 0 if none
 
+// Audio (oc_doom_sound.c). Set the output rate before ocd_start(); render is
+// called from the audio interrupt and fills n stereo samples.
+void ocd_audio_set_rate(int hz);
+void ocd_audio_render(int16_t *left, int16_t *right, int n);
+
 // ---- Implemented by the app (C++), called by the glue ---------------------
 uint32_t ocd_millis(void);
 void ocd_delay(uint32_t ms);
 void *ocd_zone_alloc(int *size);
 // Internal-RAM allocation for hot buffers; may return NULL (then the zone is used)
 void *ocd_fast_alloc(size_t size);
+// Keep the audio interrupt out while Doom changes sound/music state
+void ocd_audio_lock(void);
+void ocd_audio_unlock(void);
 int ocd_file_exists(const char *path);
 void *ocd_file_open(const char *path, uint32_t *length);
 size_t ocd_file_read(void *handle, uint32_t offset, void *buffer, size_t len);

@@ -9,6 +9,10 @@ namespace OC {
     const int AUDIO_MEMORY = 252;
     AudioStream& InputStream(int interface = 0);
     AudioStream& OutputStream();
+    // Lets one app (DOOM) take over the audio outputs: connect its stereo
+    // stream once, then switch between it and the applet chain.
+    void ConnectOverride(AudioStream& source);
+    void SetOverride(bool on);
     void Init();
   }
 }

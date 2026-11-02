@@ -13,7 +13,28 @@ namespace OC {
     AudioInputI2S2 input_stream;
 
     AudioOutputI2S2* output_stream = nullptr;
-    AudioPassthrough<2> output_route;
+    // Passes the applet chain (inputs 0-1) to the outputs, or, while an app
+    // has taken over the audio outputs (DOOM), its stream (inputs 2-3).
+    class OutputRoute : public AudioStream {
+    public:
+      OutputRoute() : AudioStream(4, inputQueueArray) {}
+      volatile bool override_active = false;
+      virtual void update(void) {
+        for (int i = 0; i < 2; i++) {
+          audio_block_t* normal = receiveReadOnly(i);
+          audio_block_t* alt = receiveReadOnly(i + 2);
+          audio_block_t* out = override_active ? alt : normal;
+          if (out) transmit(out, i);
+          if (normal) release(normal);
+          if (alt) release(alt);
+        }
+      }
+    private:
+      audio_block_t* inputQueueArray[4];
+    };
+
+    OutputRoute output_route;
+    AudioConnection override_conn[2];
 #ifdef AUDIO_INTERFACE
     // The USB audio objects are constructed FIRST (init_priority; the slot
     // linker scripts collect .init_array.* in priority order), so they sit at
@@ -76,6 +97,18 @@ namespace OC {
 #endif
       }
       return output_route;
+    }
+
+    void ConnectOverride(AudioStream& source) {
+      OutputStream();   // make sure the hardware output exists
+      override_conn[0].disconnect();
+      override_conn[1].disconnect();
+      override_conn[0].connect(source, 0, output_route, 2);
+      override_conn[1].connect(source, 1, output_route, 3);
+    }
+
+    void SetOverride(bool on) {
+      output_route.override_active = on;
     }
 
     void Init() {

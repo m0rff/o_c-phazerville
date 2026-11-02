@@ -78,6 +78,16 @@ official Phazerville `_T41` release.
 CV: TR1 fire, TR2 use, TR3 next weapon, TR4 walk forward, CV1 turn, CV2 walk.
 Outputs: A firing gate, B hurt trigger, C health 0-5 V, D ammo 0-5 V.
 
+## Sound
+
+While DOOM runs in the foreground it takes over the audio outputs (and USB
+audio in the A slot): sound effects and music replace the audio applets, which
+come back when you leave the app. Volume is set in Doom's own Options menu.
+
+Music is played by a small built-in FM synth using the WAD's GENMIDI
+instrument data (the patches the original OPL sound cards used). It is
+close to the original but not an exact OPL emulation.
+
 ## Troubleshooting
 
 | Screen says | Meaning |
